@@ -87,9 +87,7 @@ static int zworld_to_grid(float z)
 void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 {
 	const uint16_t *buf = (uint16_t *)depthbuf;
-	int barrier1 = 0xf9e8d7b6;
 	int gridpop[vdiv][udiv]; // Point population count
-	int barrier2 = 0x1337d00d;
 	int oor_total = 0; // Out of range count
 	int popmax; // Used for scaling pixel intensity
 	int x, y, u, v, w;
@@ -119,14 +117,6 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 			u = xworld_to_grid(xworld(x, z));
 			w = yworld_to_grid(yworld(y, z));
 			v = zworld_to_grid(z);
-
-			// XXX
-			if(u < 0 || u >= udiv || v < 0 || v >= vdiv) {
-				ERROR_OUT("(u, v) = (%d, %d) is out of range!\n", u, v);
-				ERROR_OUT("x=%d xw=%f xwmax=%f z=%f zmax=%f\n",
-						x, xworld(x, z), xworldmax, z, zmax);
-				done = 1;
-			}
 
 			gridpop[v][u]++;
 			if(gridpop[v][u] > popmax) {
@@ -179,19 +169,6 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 	out_of_range = oor_total > FREENECT_FRAME_PIX * 35 / 100;
 
 	frame++;
-
-	if(barrier1 != 0xf9e8d7b6) {
-		ERROR_OUT("Stack smashing on barrier 1!\n");
-		ERROR_OUT("Stack smashing on barrier 1!\n");
-		ERROR_OUT("Stack smashing on barrier 1!\n");
-		done = 1;
-	}
-	if(barrier2 != 0x1337d00d) {
-		ERROR_OUT("Stack smashing on barrier 2!\n");
-		ERROR_OUT("Stack smashing on barrier 2!\n");
-		ERROR_OUT("Stack smashing on barrier 2!\n");
-		done = 1;
-	}
 }
 
 
