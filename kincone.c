@@ -50,8 +50,8 @@ static float zmin = 0.5; // Near clipping plane in meters for ASCII art mode
 static float zmax = 5.0; // Far clipping plane '' ''
 static int ytop = 0; // Top image Y coordinate to consider
 static int ybot = FREENECT_FRAME_H; // Bottom image Y coodrinate to consider
-static float xworldmax = 3.50104; // == xworld(640, zmax)
-static float yworldmax = 2.46573; // == yworld(480, zmax) TODO: correct if yworld is changed
+static float xworldmax;
+static float yworldmax;
 static int done = 0;
 
 
@@ -72,7 +72,7 @@ static float lutf(float idx)
 static float xworld(int x, float z)
 {
 	// tan 35 ~= .70021
-	return (float)(x - FREENECT_FRAME_W / 2) * (.70021f / 320.0f) * z;
+	return (float)(x - FREENECT_FRAME_W / 2) * (.70021f / (FREENECT_FRAME_W / 2)) * z;
 }
 
 static float yworld(int y, float z)
@@ -81,7 +81,7 @@ static float yworld(int y, float z)
 	// xworld() is enough for both X and Y.  I'm pretty sure that 26.25 is
 	// incorrect for the vertical viewing angle, since the sensor is planar
 	// tan 26.25 ~= .49315
-	return (float)(y - FREENECT_FRAME_H / 2) * (.49315f / 240.0f) * z;
+	return (float)(y - FREENECT_FRAME_H / 2) * (.49315f / (FREENECT_FRAME_H / 2)) * z;
 }
 
 static int xworld_to_grid(float xworld)
@@ -97,13 +97,7 @@ static int yworld_to_grid(float yworld)
 
 static int zworld_to_grid(float z)
 {
-	int val = (int)((z - zmin) * divisions / zmax + 0.5f);
-	if(val < 0) {
-		return 0;
-	}
-	if(val >= divisions) {
-		return divisions - 1;
-	}
+	int val = (int)((z - zmin) * divisions / (zmax - zmin) + 0.5f);
 	return val;
 }
 
@@ -131,9 +125,14 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 			}
 
 			z = depth_lut[DPT(buf, x, y)];
+
+			if(z > zmax) {
+				continue;
+			}
+
 			u = xworld_to_grid(xworld(x, z));
-			v = zworld_to_grid(z);
 			w = yworld_to_grid(yworld(y, z));
+			v = zworld_to_grid(z);
 
 			// XXX
 			if(u < 0 || u >= divisions || v < 0 || v >= divisions) {
