@@ -132,22 +132,28 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 
 			gridpop[v][u]++;
 			if(gridpop[v][u] > popmax) {
-				popmax = gridpop[u][v];
+				popmax = gridpop[v][u];
 			}
 		}
 	}
 
 	// Display grid containing cone
 	printf("\e[H\e[2J");
-	INFO_OUT("time: %u frame: %d top: %d bottom: %d out: %d%%\n",
-			timestamp, frame, ytop, ybot, oor_total * 100 / FREENECT_FRAME_PIX);
+	INFO_OUT("time: %u frame: %d top: %d bottom: %d popmax: %d out: %d%%\n",
+			timestamp, frame, ytop, ybot, popmax, oor_total * 100 / FREENECT_FRAME_PIX);
 
-	for(v = 0; v < divisions; v++) {
-		for(u = 0; u < divisions; u++) {
-			int c = gridpop[v][u] * 5 / popmax;
-			putchar(" .-+%8!"[c]); // The exclamation should never be displayed
+	if(popmax) {
+		for(v = 0; v < divisions; v++) {
+			for(u = 0; u < divisions; u++) {
+				int c = gridpop[v][u] * 20 / popmax;
+				if(c > 5) {
+					c = 5;
+				}
+
+				putchar(" .-+%8/\\"[c]);
+			}
+			putchar('\n');
 		}
-		putchar('\n');
 	}
 
 	fflush(stdout);
