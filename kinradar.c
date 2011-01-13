@@ -139,10 +139,10 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 	for(z = zmin; z < zmax; z += (zmax - zmin) / vdiv) {
 		u = xworld_to_grid(xworld(0, z));
 		v = zworld_to_grid(z);
-		gridpop[v][u] = -1;
+		gridpop[v][u] = -2;
 		u = xworld_to_grid(xworld(FREENECT_FRAME_W - 1, z));
 		v = zworld_to_grid(z);
-		gridpop[v][u] = -2;
+		gridpop[v][u] = -1;
 	}
 
 	// Display grid containing cone
