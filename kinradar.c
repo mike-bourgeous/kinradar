@@ -2,6 +2,7 @@
  * Test Kinect/libfreenect program to display a radar-like distance cone.
  * Created Jan. 12, 2011
  * (C)2011 Mike Bourgeous
+ * Distributed with no warranty under GPLv2 or later.
  */
 #include <stdio.h>
 #include <stdlib.h>
