@@ -1,13 +1,7 @@
 /*
- * Test Kinect/libfreenect program to display grid-based stats.
- * Created Jan. 11, 2011
+ * Test Kinect/libfreenect program to display a radar-like distance cone.
+ * Created Jan. 12, 2011
  * (C)2011 Mike Bourgeous
- *
- * Some ideas for more work:
- * 3D grid occupation - consider a 3D grid box as "occupied" if 20% or more of
- * the pixels in that 3D grid box's corresponding image-space 2D box are within
- * the range of that 3D grid box.  In this case the 3D grid boxes would
- * actually be pyramid sections in true 3D space, not cubes.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,12 +44,14 @@
 // Application state (I wish freenect provided a user data struct for callbacks)
 static float depth_lut[2048];
 static int out_of_range = 0;
-static int divisions = 6; // Grid divisions
-static int boxwidth = 10; // Display grid box width, less border and padding
-static int histrows = 8; // Number of histogram rows per grid box
+static int divisions = 48; // Grid divisions
 static unsigned int frame = 0; // Frame count
 static float zmin = 0.5; // Near clipping plane in meters for ASCII art mode
 static float zmax = 5.0; // Far clipping plane '' ''
+static int ytop = 0; // Top image Y coordinate to consider
+static int ybot = FREENECT_FRAME_H; // Bottom image Y coodrinate to consider
+static float xworldmax = 3.50104; // == xworld(640, zmax)
+static float yworldmax = 2.46573; // == yworld(480, zmax) TODO: correct if yworld is changed
 
 static enum {
 	STATS,
@@ -71,224 +67,82 @@ static float lutf(float idx)
 	return depth_lut[idx_int] * k + depth_lut[idx_int + 1] * (1.0f - k);
 }
 
-void repeat_char(int c, int count)
+static float xworld(int x, float z)
 {
-	int i;
-	for(i = 0; i < count; i++) {
-		putchar(c);
+	// tan 35 ~= .70021
+	return (float)(x - FREENECT_FRAME_W / 2) * (.70021f / 320.0f) * z;
+}
+
+static float yworld(int y, float z)
+{
+	// TODO: Determine whether a separate function is necessary, or if
+	// xworld() is enough for both X and Y.  I'm pretty sure that 26.25 is
+	// incorrect for the vertical viewing angle, since the sensor is planar
+	// tan 26.25 ~= .49315
+	return (float)(y - FREENECT_FRAME_H / 2) * (.49315f / 240.0f) * z;
+}
+
+static int xworld_to_grid(float xworld)
+{
+	// At ximage=640 and z=zmax, xworld is zmax * .70021
+	return (int)(xworld * divisions / xworldmax + 0.5f); // +0.5f for rounding
+}
+
+static int yworld_to_grid(float yworld)
+{
+	return (int)(yworld * divisions / yworldmax + 0.5f);
+}
+
+static int zworld_to_grid(float z)
+{
+	int val = (int)((z - zmin) * divisions / zmax + 0.5f);
+	if(val < 0) {
+		return 0;
 	}
-}
-
-// Prints horizontal border between grid rows
-void grid_hline()
-{
-	int i;
-	for(i = 0; i < divisions; i++) {
-		putchar('+');
-		repeat_char('-', boxwidth + 2);
+	if(val >= divisions) {
+		return divisions - 1;
 	}
-	puts("+");
-}
-
-// Prints a single row in a single grid box
-void grid_box_row(const char *text)
-{
-	printf("| %*s ", boxwidth, text);
-}
-
-// Prints a formatted single row in a single grid box
-void __attribute__((format(printf, 1, 2))) grid_entry(const char *format, ...)
-{
-	char buf[boxwidth + 1];
-	va_list args;
-
-	va_start(args, format);
-	vsnprintf(buf, boxwidth + 1, format, args);
-	va_end(args);
-
-	grid_box_row(buf);
-}
-
-// Prints a horizontal bar chart element in a grid box
-void grid_bar(int c, int percent)
-{
-	int charcount;
-
-	if(percent > 100) {
-		percent = 100;
-	} else if(percent < 0) {
-		percent = 0;
-	}
-
-	charcount = percent * boxwidth / 100;
-
-	printf("| ");
-	repeat_char(c, charcount);
-	repeat_char(' ', boxwidth - charcount);
-	putchar(' ');
+	return val;
 }
 
 void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 {
 	uint16_t *buf = (uint16_t *)depthbuf;
-	volatile int small_histogram[divisions][divisions][SM_HIST_SIZE];
-	volatile int total[divisions][divisions];
-	volatile uint16_t min[divisions][divisions];
-	volatile uint16_t max[divisions][divisions];
-	volatile uint16_t median[divisions][divisions];
-	volatile float avg[divisions][divisions];
-	volatile int oor_count[divisions][divisions];
-	volatile int div_pix[divisions][divisions];
+	int gridpop[divisions][divisions]; // Point population count
 	int oor_total = 0; // Out of range count
-	volatile int i, j, medcount, histcount;
+	int popmax = 0; // Used for scaling pixel intensity
+	int x, y, u, v, w;
+	float z;
 
 	// Initialize data structures
-	memset(small_histogram, 0, sizeof(small_histogram));
-	memset(total, 0, sizeof(total));
-	memset(min, 0xff, sizeof(min));
-	memset(max, 0, sizeof(max));
-	memset(oor_count, 0, sizeof(oor_count));
-	memset(div_pix, 0, sizeof(oor_count));
+	memset(gridpop, 0, sizeof(gridpop));
 
-	// Fill in grid stats
-	for(i = 0; i < FREENECT_FRAME_PIX; i++) {
-		int gridx = PX_TO_GRIDX(i);
-		int gridy = PX_TO_GRIDY(i);
+	// Fill in cone
+	for(y = ytop; y < ybot; y++) {
+		for(x = 0; x < FREENECT_FRAME_W; x++) {
+			z = depth_lut[DPT(buf, x, y)];
+			u = xworld_to_grid(xworld(x, z));
+			v = zworld_to_grid(z);
+			w = yworld_to_grid(yworld(y, z));
 
-		div_pix[gridy][gridx]++; // TODO: Calculate this only once
-		if(buf[i] == 2047) {
-			oor_count[gridy][gridx]++;
-			oor_total++;
-			continue;
-		}
-
-		small_histogram[gridy][gridx][buf[i] * SM_HIST_SIZE / 1024]++;
-
-		if(buf[i] < min[gridy][gridx]) {
-			min[gridy][gridx] = buf[i];
-		}
-		if(buf[i] > max[gridy][gridx]) {
-			max[gridy][gridx] = buf[i];
-		}
-		total[gridy][gridx] += buf[i];
-	}
-
-	// Calculate grid averages
-	for(i = 0; i < divisions; i++) {
-		for(j = 0; j < divisions; j++) {
-			if(oor_count[i][j] < div_pix[i][j]) {
-				avg[i][j] = (double)total[i][j] / (double)(div_pix[i][j] - oor_count[i][j]);
-
-				// FIXME: Something is wrong with median calculation
-				for(medcount = 0, histcount = 0; histcount < SM_HIST_SIZE; histcount++) {
-					medcount += small_histogram[i][j][histcount];
-					if(medcount >= (div_pix[i][j] - oor_count[i][j]) / 2) {
-						break;
-					}
-				}
-				median[i][j] = (histcount * 1024 + (SM_HIST_SIZE / 2)) / SM_HIST_SIZE;
-			} else {
-				min[i][j] = 2047;
-				max[i][j] = 2047;
-				avg[i][j] = 2047;
-				median[i][j] = 2047;
+			gridpop[v][u]++;
+			if(gridpop[v][u] > popmax) {
+				popmax = gridpop[u][v];
 			}
 		}
 	}
 
-	// Display grid stats
+	// Display grid containing cone
 	printf("\e[H\e[2J");
-	INFO_OUT("time: %u frame: %d out: %d%%\n", timestamp, frame, oor_total * 100 / FREENECT_FRAME_PIX);
-	for(i = 0; i < divisions; i++) {
-		if(disp_mode != ASCII) {
-			grid_hline();
+	INFO_OUT("time: %u frame: %d top: %d bottom: %d out: %d%%\n",
+			timestamp, frame, ytop, ybot, oor_total * 100 / FREENECT_FRAME_PIX);
+
+	for(v = 0; v < divisions; v++) {
+		for(u = 0; u < divisions; u++) {
+			int c = gridpop[v][u] * 5 / popmax;
+			putchar(" .-+%8!"[c]); // The exclamation should never be displayed
 		}
-
-		switch(disp_mode) {
-			case STATS:
-				// This would be an interesting use of lambdas to return the
-				// value for a given column, allowing a "grid_row" function to
-				// be produced:
-				// grid_row("Pix %d", int lambda(int j) { return div_pix[i][j]; })
-
-				for(j = 0; j < divisions; j++) {
-					grid_entry("Pix %d", div_pix[i][j]);
-				}
-				puts("|");
-
-				for(j = 0; j < divisions; j++) {
-					grid_entry("Avg %f", lutf(avg[i][j]));
-				}
-				puts("|");
-
-				for(j = 0; j < divisions; j++) {
-					grid_entry("Min %f", depth_lut[min[i][j]]);
-				}
-				puts("|");
-
-				for(j = 0; j < divisions; j++) {
-					grid_entry("Med ~%f", depth_lut[median[i][j]]);
-				}
-				puts("|");
-
-				for(j = 0; j < divisions; j++) {
-					grid_entry("Max %f", depth_lut[max[i][j]]);
-				}
-				puts("|");
-
-				for(j = 0; j < divisions; j++) {
-					grid_entry("Out %d%%", oor_count[i][j] * 100 / div_pix[i][j]);
-				}
-				puts("|");
-				break;
-
-			case HISTOGRAM:
-				for(histcount = 0; histcount < histrows; histcount++) {
-					for(j = 0; j < divisions; j++) {
-						int l, val = 0;
-						if(i == 2 && j == 4 && histcount == 0) { // XXX : this block is for debugging
-							printf("\n");
-							for(l = 0; l < SM_HIST_SIZE; l++) {
-								INFO_OUT("%d (%f): %d\n",
-										l * 1024 / SM_HIST_SIZE,
-										depth_lut[l * 1024 / SM_HIST_SIZE],
-										small_histogram[i][j][l]);
-							}
-							printf("\n");
-						}
-						for(l = 0; l < SM_HIST_SIZE / histrows; l++) {
-							val += small_histogram[i][j][histcount + l];
-						}
-						grid_bar('*', val * 40 * histrows / div_pix[i][j]);
-					}
-					puts("|");
-				}
-				break;
-
-			case ASCII:
-				for(i = 0; i < divisions; i++) {
-					for(j = 0; j < divisions; j++) {
-						int c = (int)((depth_lut[min[i][j]] - zmin) * 4.0f / zmax);
-						if(c > 5) {
-							c = 5;
-						} else if(c < 0) {
-						       c = 0;
-						}
-						if(min[i][j] == 2047) {
-							c = 6;
-						}
-
-						// 1st character is closest, 5th character farthest
-						// 6th character is shown for out-of-range areas
-						putchar("8%+-._ "[c]);
-					}
-					putchar('\n');
-				}
-				break;
-		}
-	}
-	if(disp_mode != ASCII) {
-		grid_hline();
+		putchar('\n');
 	}
 
 	fflush(stdout);
@@ -326,18 +180,10 @@ int main(int argc, char *argv[])
 	freenect_context *kn;
 	freenect_device *kn_dev;
 	
-	int rows = 40, cols = 96; // terminal size
 	int opt;
 
-	if(getenv("LINES")) {
-		rows = atoi(getenv("LINES"));
-	}
-	if(getenv("COLUMNS")) {
-		cols = atoi(getenv("COLUMNS"));
-	}
-
 	// Handle command-line options
-	while((opt = getopt(argc, argv, "shag:z:Z:")) != -1) {
+	while((opt = getopt(argc, argv, "g:y:Y:z:Z:")) != -1) {
 		switch(opt) {
 			case 's':
 				// Stats mode
@@ -354,6 +200,24 @@ int main(int argc, char *argv[])
 			case 'g':
 				// Grid divisions
 				divisions = atoi(optarg);
+				break;
+			case 'y':
+				// Y top
+				ytop = atoi(optarg);
+				if(ytop < 0) {
+					ytop = 0;
+				} else if(ytop >= FREENECT_FRAME_H) {
+					ytop = FREENECT_FRAME_H - 1;
+				}
+				break;
+			case 'Y':
+				// Y bottom
+				ybot = atoi(optarg);
+				if(ybot < 0) {
+					ybot = 0;
+				} else if(ybot >= FREENECT_FRAME_H) {
+					ybot = FREENECT_FRAME_H - 1;
+				}
 				break;
 			case 'z':
 				// Near clipping
@@ -377,12 +241,9 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	boxwidth = (cols - 1) / divisions - 3;
-	if(boxwidth < 10) {
-		boxwidth = 10;
-	}
-	histrows = (rows - 2) / divisions - 1;
-	
+	xworldmax = xworld(FREENECT_FRAME_W, zmax);
+	yworldmax = yworld(FREENECT_FRAME_H, zmax);
+
 	init_lut();
 
 	if(signal(SIGINT, intr) == SIG_ERR ||
