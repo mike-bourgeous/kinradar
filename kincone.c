@@ -52,6 +52,8 @@ static int ytop = 0; // Top image Y coordinate to consider
 static int ybot = FREENECT_FRAME_H; // Bottom image Y coodrinate to consider
 static float xworldmax = 3.50104; // == xworld(640, zmax)
 static float yworldmax = 2.46573; // == yworld(480, zmax) TODO: correct if yworld is changed
+static int done = 0;
+
 
 static enum {
 	STATS,
@@ -107,15 +109,18 @@ static int zworld_to_grid(float z)
 
 void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 {
-	uint16_t *buf = (uint16_t *)depthbuf;
+	const uint16_t *buf = (uint16_t *)depthbuf;
+	int barrier1 = 0xf9e8d7b6;
 	int gridpop[divisions][divisions]; // Point population count
+	int barrier2 = 0x1337d00d;
 	int oor_total = 0; // Out of range count
-	int popmax = 0; // Used for scaling pixel intensity
+	int popmax; // Used for scaling pixel intensity
 	int x, y, u, v, w;
 	float z;
 
 	// Initialize data structures
 	memset(gridpop, 0, sizeof(gridpop));
+	popmax = 0;
 
 	// Fill in cone
 	for(y = ytop; y < ybot; y++) {
@@ -129,6 +134,14 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 			u = xworld_to_grid(xworld(x, z));
 			v = zworld_to_grid(z);
 			w = yworld_to_grid(yworld(y, z));
+
+			// XXX
+			if(u < 0 || u >= divisions || v < 0 || v >= divisions) {
+				ERROR_OUT("(u, v) = (%d, %d) is out of range!\n", u, v);
+				ERROR_OUT("x = %d, xw=%f, xwmax=%f, z=%f\n",
+						x, xworld(x, z), xworldmax, z);
+				done = 1;
+			}
 
 			gridpop[v][u]++;
 			if(gridpop[v][u] > popmax) {
@@ -179,10 +192,21 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 	out_of_range = oor_total > FREENECT_FRAME_PIX * 35 / 100;
 
 	frame++;
+
+	if(barrier1 != 0xf9e8d7b6) {
+		ERROR_OUT("Stack smashing on barrier 1!\n");
+		ERROR_OUT("Stack smashing on barrier 1!\n");
+		ERROR_OUT("Stack smashing on barrier 1!\n");
+		done = 1;
+	}
+	if(barrier2 != 0x1337d00d) {
+		ERROR_OUT("Stack smashing on barrier 2!\n");
+		ERROR_OUT("Stack smashing on barrier 2!\n");
+		ERROR_OUT("Stack smashing on barrier 2!\n");
+		done = 1;
+	}
 }
 
-
-static int done = 0;
 
 void intr(int signum)
 {
