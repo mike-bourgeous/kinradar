@@ -33,8 +33,8 @@
 // Application state (I wish freenect provided a user data struct for callbacks)
 static float depth_lut[2048];
 static int out_of_range = 0;
-static int udiv = 48; // Grid horizontal (x or y) divisions
-static int vdiv = 24; // Grid vertical (z) divisions
+static int udiv = 80; // Grid horizontal (x or y) divisions
+static int vdiv = 32; // Grid vertical (z) divisions
 static unsigned int frame = 0; // Frame count
 static float zmin = 0.5; // Near clipping plane in meters
 static float zmax = 5.0; // Far clipping plane '' ''
