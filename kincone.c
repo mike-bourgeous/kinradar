@@ -85,12 +85,12 @@ static float yworld(int y, float z)
 static int xworld_to_grid(float xworld)
 {
 	// At ximage=640 and z=zmax, xworld is zmax * .70021
-	return (int)(xworld * divisions / xworldmax + 0.5f); // +0.5f for rounding
+	return (int)((xworld + xworldmax) * divisions * 0.5f / xworldmax + 0.5f); // +0.5f for rounding
 }
 
 static int yworld_to_grid(float yworld)
 {
-	return (int)(yworld * divisions / yworldmax + 0.5f);
+	return (int)((yworld + yworldmax) * divisions * 0.5f / yworldmax + 0.5f);
 }
 
 static int zworld_to_grid(float z)
