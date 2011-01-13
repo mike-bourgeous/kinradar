@@ -120,6 +120,11 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 	// Fill in cone
 	for(y = ytop; y < ybot; y++) {
 		for(x = 0; x < FREENECT_FRAME_W; x++) {
+			if(DPT(buf, x, y) == 2047) {
+				oor_total++;
+				continue;
+			}
+
 			z = depth_lut[DPT(buf, x, y)];
 			u = xworld_to_grid(xworld(x, z));
 			v = zworld_to_grid(z);
