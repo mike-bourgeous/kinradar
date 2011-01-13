@@ -147,8 +147,10 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 
 	// Display grid containing cone
 	printf("\e[H\e[2J");
-	INFO_OUT("time: %u frame: %d top: %d bottom: %d popmax: %d out: %d%%\n",
-			timestamp, frame, ytop, ybot, popmax, oor_total * 100 / FREENECT_FRAME_PIX);
+	INFO_OUT("time: %u frame: %d top: %d bottom: %d\n",
+			timestamp, frame, ytop, ybot);
+	INFO_OUT("popmax: %d out: %d%%\n", popmax,
+			oor_total * 100 / FREENECT_FRAME_PIX);
 
 	if(popmax) {
 		for(v = 0; v < vdiv; v++) {
