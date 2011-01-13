@@ -36,22 +36,17 @@
 // Application state (I wish freenect provided a user data struct for callbacks)
 static float depth_lut[2048];
 static int out_of_range = 0;
-static int divisions = 48; // Grid divisions
+static int udiv = 48; // Grid horizontal (x or y) divisions
+static int vdiv = 24; // Grid vertical (z) divisions
 static unsigned int frame = 0; // Frame count
-static float zmin = 0.5; // Near clipping plane in meters for ASCII art mode
+static float zmin = 0.5; // Near clipping plane in meters
 static float zmax = 5.0; // Far clipping plane '' ''
 static int ytop = 0; // Top image Y coordinate to consider
 static int ybot = FREENECT_FRAME_H; // Bottom image Y coodrinate to consider
-static float xworldmax;
-static float yworldmax;
-static int done = 0;
+static float xworldmax; // Maximum X coordinate visible on grid
+static float yworldmax; // Maximum Y coordinate visible on grid (if Y is shown instead of X)
+static int done = 0; // Set to 1 to break main loop
 
-
-static enum {
-	STATS,
-	HISTOGRAM,
-	ASCII,
-} disp_mode = STATS;
 
 static float lutf(float idx)
 {
@@ -64,7 +59,7 @@ static float lutf(float idx)
 static float xworld(int x, float z)
 {
 	// tan 35 ~= .70021
-	return (float)(x - FREENECT_FRAME_W / 2) * (.70021f / (FREENECT_FRAME_W / 2)) * z;
+	return (float)(FREENECT_FRAME_W / 2 - x) * (.70021f / (FREENECT_FRAME_W / 2)) * z;
 }
 
 static float yworld(int y, float z)
@@ -79,17 +74,23 @@ static float yworld(int y, float z)
 static int xworld_to_grid(float xworld)
 {
 	// At ximage=640 and z=zmax, xworld is zmax * .70021
-	return (int)((xworld + xworldmax) * divisions * 0.5f / xworldmax + 0.5f); // +0.5f for rounding
+	return (int)((xworld + xworldmax) * udiv * 0.5f / xworldmax);
 }
 
 static int yworld_to_grid(float yworld)
 {
-	return (int)((yworld + yworldmax) * divisions * 0.5f / yworldmax + 0.5f);
+	return (int)((yworld + yworldmax) * udiv * 0.5f / yworldmax);
 }
 
 static int zworld_to_grid(float z)
 {
-	int val = (int)((z - zmin) * divisions / (zmax - zmin) + 0.5f);
+	int val = (int)((z - zmin) * vdiv / (zmax - zmin));
+	if(val < 0) {
+		val = 0;
+	}
+	if(val >= vdiv) {
+		val = vdiv - 1;
+	}
 	return val;
 }
 
@@ -97,7 +98,7 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 {
 	const uint16_t *buf = (uint16_t *)depthbuf;
 	int barrier1 = 0xf9e8d7b6;
-	int gridpop[divisions][divisions]; // Point population count
+	int gridpop[vdiv][udiv]; // Point population count
 	int barrier2 = 0x1337d00d;
 	int oor_total = 0; // Out of range count
 	int popmax; // Used for scaling pixel intensity
@@ -118,6 +119,9 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 
 			z = depth_lut[DPT(buf, x, y)];
 
+			if(z < zmin) {
+				continue;
+			}
 			if(z > zmax) {
 				continue;
 			}
@@ -127,10 +131,10 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 			v = zworld_to_grid(z);
 
 			// XXX
-			if(u < 0 || u >= divisions || v < 0 || v >= divisions) {
+			if(u < 0 || u >= udiv || v < 0 || v >= vdiv) {
 				ERROR_OUT("(u, v) = (%d, %d) is out of range!\n", u, v);
-				ERROR_OUT("x = %d, xw=%f, xwmax=%f, z=%f\n",
-						x, xworld(x, z), xworldmax, z);
+				ERROR_OUT("x=%d xw=%f xwmax=%f z=%f zmax=%f\n",
+						x, xworld(x, z), xworldmax, z, zmax);
 				done = 1;
 			}
 
@@ -141,8 +145,8 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 		}
 	}
 
-	// Draw cone borders
-	for(z = zmin; z < zmax; z += (zmax - zmin) / divisions) {
+	// Draw cone borders (this isn't perfect, but it's good enough)
+	for(z = zmin; z < zmax; z += (zmax - zmin) / vdiv) {
 		u = xworld_to_grid(xworld(0, z));
 		v = zworld_to_grid(z);
 		gridpop[v][u] = -1;
@@ -157,8 +161,8 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 			timestamp, frame, ytop, ybot, popmax, oor_total * 100 / FREENECT_FRAME_PIX);
 
 	if(popmax) {
-		for(v = 0; v < divisions; v++) {
-			for(u = 0; u < divisions; u++) {
+		for(v = 0; v < vdiv; v++) {
+			for(u = 0; u < udiv; u++) {
 				int c = gridpop[v][u] * 20 / popmax;
 				if(c > 5) {
 					c = 5;
@@ -225,23 +229,15 @@ int main(int argc, char *argv[])
 	int opt;
 
 	// Handle command-line options
-	while((opt = getopt(argc, argv, "g:y:Y:z:Z:")) != -1) {
+	while((opt = getopt(argc, argv, "g:G:y:Y:z:Z:")) != -1) {
 		switch(opt) {
-			case 's':
-				// Stats mode
-				disp_mode = STATS;
-				break;
-			case 'h':
-				// Histogram mode
-				disp_mode = HISTOGRAM;
-				break;
-			case 'a':
-				// ASCII art mode
-				disp_mode = ASCII;
-				break;
 			case 'g':
-				// Grid divisions
-				divisions = atoi(optarg);
+				// Horizontal (x or y) grid divisions
+				udiv = atoi(optarg);
+				break;
+			case 'G':
+				// Vertical (z) grid divisions
+				vdiv = atoi(optarg);
 				break;
 			case 'y':
 				// Y top
@@ -270,23 +266,29 @@ int main(int argc, char *argv[])
 				zmax = atof(optarg);
 				break;
 			default:
-				fprintf(stderr, "Usage: %s -[sh] [-g divisions]\n", argv[0]);
-				fprintf(stderr, "Use up to one of:\n");
-				fprintf(stderr, "\ts - Stats mode (default)\n");
-				fprintf(stderr, "\th - Histogram mode\n");
-				fprintf(stderr, "\ta - ASCII art mode\n");
+				fprintf(stderr, "Usage: %s [-gG divisions] [-yY pixels] [-zZ distance]\n",
+						argv[0]);
 				fprintf(stderr, "Use any of:\n");
-				fprintf(stderr, "\tg - Set grid divisions for both dimensions\n");
-				fprintf(stderr, "\tz - Set near clipping plane in meters for ASCII art mode (default 0.5)\n");
-				fprintf(stderr, "\tZ - Set far clipping plane in meters for ASCII art mode (default 5.0)\n");
+				fprintf(stderr, "\tg - Set horizontal (x or y) grid divisions\n");
+				fprintf(stderr, "\tG - Set vertical (z) grid divisions\n");
+				fprintf(stderr, "\ty - Set top of active area in screen pixels (0-%d)\n",
+						FREENECT_FRAME_H - 1);
+				fprintf(stderr, "\tY - Set bottom of active area in screen pixels (0-%d)\n",
+						FREENECT_FRAME_H - 1);
+				fprintf(stderr, "\tz - Set near clipping plane in meters (default 0.5)\n");
+				fprintf(stderr, "\tZ - Set far clipping plane in meters (default 5.0)\n");
 				return -1;
 		}
 	}
 
-	xworldmax = xworld(FREENECT_FRAME_W, zmax);
+	init_lut();
+
+	xworldmax = xworld(0, zmax);
 	yworldmax = yworld(FREENECT_FRAME_H, zmax);
 
-	init_lut();
+	INFO_OUT("zmax: %f xworldmax: %f zgridmax: %d xgridmin: %d xgridmax: %d\n",
+			zmax, xworldmax, zworld_to_grid(zmax),
+			xworld_to_grid(xworld(0, zmax)), xworld_to_grid(xworld(639, zmax)));
 
 	if(signal(SIGINT, intr) == SIG_ERR ||
 			signal(SIGTERM, intr) == SIG_ERR) {
