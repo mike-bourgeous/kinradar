@@ -26,10 +26,6 @@
 	fprintf(stderr, "\e[0m");\
 }
 
-#define ARRAY_SIZE(array) (sizeof((array)) / sizeof((array)[0]))
-
-
-#define SM_HIST_SIZE	64
 
 // Get a depth pixel from an 11-bit buffer stored in uint16_t
 #define DPT(buf, x, y) (buf[(y) * FREENECT_FRAME_W + (x)])
@@ -48,14 +44,6 @@ static float xworldmax; // Maximum X coordinate visible on grid
 static float yworldmax; // Maximum Y coordinate visible on grid (if Y is shown instead of X)
 static int done = 0; // Set to 1 to break main loop
 
-
-static float lutf(float idx)
-{
-	int idx_int = (int)idx;
-	float k = idx_int - idx;
-
-	return depth_lut[idx_int] * k + depth_lut[idx_int + 1] * (1.0f - k);
-}
 
 static float xworld(int x, float z)
 {
