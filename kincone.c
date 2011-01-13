@@ -137,6 +137,16 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 		}
 	}
 
+	// Draw cone borders
+	for(z = zmin; z < zmax; z += (zmax - zmin) / divisions) {
+		u = xworld_to_grid(xworld(0, z));
+		v = zworld_to_grid(z);
+		gridpop[v][u] = -1;
+		u = xworld_to_grid(xworld(FREENECT_FRAME_W - 1, z));
+		v = zworld_to_grid(z);
+		gridpop[v][u] = -2;
+	}
+
 	// Display grid containing cone
 	printf("\e[H\e[2J");
 	INFO_OUT("time: %u frame: %d top: %d bottom: %d popmax: %d out: %d%%\n",
@@ -150,6 +160,12 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 					c = 5;
 				}
 
+				// Special values for cone borders
+				if(gridpop[v][u] == -1) {
+					c = 6;
+				} else if(gridpop[v][u] == -2) {
+					c = 7;
+				}
 				putchar(" .-+%8/\\"[c]);
 			}
 			putchar('\n');
