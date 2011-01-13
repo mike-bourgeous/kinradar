@@ -6,7 +6,8 @@ kinradar displays an ASCII-art radar-like distance view, simulating an overhead
 view of the room.  The intensity of each ASCII-art pixel is determined by the
 strength of the reflected signal at that distance (i.e. the number of depth
 samples falling within that pixel's corresponding 3D area).  The considered
-vertical area of the image can be restricted.
+vertical area of the image can be restricted.  At this point only a horizontal
+cross section is supported, but adding vertical cross sections would be easy.
 
 A depth sample's corresponding location in 3D space is calculated by assuming a
 70 degree horizontal field of view, resulting in the following formula for X:
@@ -20,111 +21,63 @@ You will need libfreenect from the OpenKinect project to compile kinradar.
 Compiling and Running
 ---------------------
     $ make
-    $ ./kinradar          # Grid stats mode
-    $ ./kinradar -a -g 40 # ASCII art mode (40x40)
+
+    # Show a basic radar display
+    $ ./kinradar
+
+    # Show a high-res display
+    $ xterm -fs 6 -fa 'Bitstream Vera Sans Mono' -geometry 257x92 -e ./kinradar -g 256 -G 88
 
 Command-line Options
 --------------------
-    usage: ./kinradar -[sha] [-g divisions] [-zZ distance]
-	Use up to one of:
-		s - Stats mode (default)
-		h - Histogram mode
-		a - ASCII art mode
-	Use any of:
-		g - Set grid divisions for both dimensions
-		z - Set near clipping plane in meters for ASCII art mode (default 0.5)
-		Z - Set far clipping plane in meters for ASCII art mode (default 5.0)
+    usage: ./kinradar [-gG divisions] [-yY pixels] [-zZ distance]
+    Use any of:
+    	g - Set horizontal (x or y) grid divisions
+    	G - Set vertical (z) grid divisions
+    	y - Set top of active area in screen pixels (0-479)
+    	Y - Set bottom of active area in screen pixels (0-479)
+    	z - Set near clipping plane in meters (default 0.5)
+    	Z - Set far clipping plane in meters (default 5.0)
 
 Sample Output
 -------------
-    $ ./kinradar
-    kinradar.c:199: depth():	time: 4028375914 frame: 64 out: 10%
-    +--------------+--------------+--------------+--------------+--------------+--------------+
-    |     Pix 8560 |     Pix 8560 |     Pix 8480 |     Pix 8560 |     Pix 8560 |     Pix 8480 |
-    | Avg 4.408420 | Avg 5.175214 | Avg 5.154256 | Avg 5.056608 | Avg 5.387090 | Avg 4.033168 |
-    | Min 4.135463 | Min 4.339985 | Min 4.565750 | Min 4.625907 | Min 4.687690 | Min 3.315089 |
-    | Med ~4.13546 | Med ~4.13546 | Med ~4.13546 | Med ~4.13546 | Med ~0.30546 | Med ~0.30546 |
-    | Max 4.507137 | Max 6.897511 | Max 7.329297 | Max 5.409945 | Max 7.329297 | Max 4.952149 |
-    |      Out 48% |      Out 33% |       Out 9% |       Out 3% |      Out 20% |      Out 21% |
-    +--------------+--------------+--------------+--------------+--------------+--------------+
-    |     Pix 8560 |     Pix 8560 |     Pix 8480 |     Pix 8560 |     Pix 8560 |     Pix 8480 |
-    | Avg 4.508284 | Avg 5.951095 | Avg 5.593506 | Avg 5.154082 | Avg 5.535252 | Avg 4.085456 |
-    | Min 4.235250 | Min 4.394309 | Min 4.751122 | Min 4.883278 | Min 4.687690 | Min 3.479467 |
-    | Med ~4.13546 | Med ~5.09588 | Med ~0.31047 | Med ~4.13546 | Med ~0.30546 | Med ~0.30546 |
-    | Max 4.816294 | Max 6.897511 | Max 7.329297 | Max 5.248237 | Max 8.378263 | Max 4.816294 |
-    |      Out 20% |       Out 1% |       Out 6% |       Out 0% |      Out 22% |      Out 15% |
-    +--------------+--------------+--------------+--------------+--------------+--------------+
-    |     Pix 8560 |     Pix 8560 |     Pix 8480 |     Pix 8560 |     Pix 8560 |     Pix 8480 |
-    | Avg 4.351297 | Avg 5.996928 | Avg 5.549759 | Avg 5.140886 | Avg 5.453139 | Avg 2.477981 |
-    | Min 3.905393 | Min 4.286987 | Min 4.687690 | Min 4.883278 | Min 4.625907 | Min 0.911927 |
-    | Med ~4.13546 | Med ~5.09588 | Med ~0.31047 | Med ~4.13546 | Med ~0.30546 | Med ~0.30546 |
-    | Max 4.565750 | Max 6.897511 | Max 7.329297 | Max 5.170927 | Max 7.818793 | Max 5.022990 |
-    |       Out 8% |      Out 14% |       Out 0% |       Out 0% |       Out 6% |      Out 15% |
-    +--------------+--------------+--------------+--------------+--------------+--------------+
-    |     Pix 8560 |     Pix 8560 |     Pix 8480 |     Pix 8560 |     Pix 8560 |     Pix 8480 |
-    | Avg 1.680257 | Avg 2.868687 | Avg 2.890044 | Avg 2.877384 | Avg 1.742995 | Avg 0.875108 |
-    | Min 1.278588 | Min 2.194463 | Min 2.167303 | Min 2.140801 | Min 0.893035 | Min 0.809033 |
-    | Med ~1.34267 | Med ~2.12779 | Med ~2.12779 | Med ~2.12779 | Med ~1.19512 | Med ~0.82854 |
-    | Max 4.450008 | Max 7.179486 | Max 7.179486 | Max 6.897511 | Max 6.764667 | Max 4.339985 |
-    |      Out 16% |       Out 0% |       Out 1% |       Out 5% |      Out 11% |      Out 14% |
-    +--------------+--------------+--------------+--------------+--------------+--------------+
-    |     Pix 8560 |     Pix 8560 |     Pix 8480 |     Pix 8560 |     Pix 8560 |     Pix 8480 |
-    | Avg 1.411009 | Avg 2.249891 | Avg 2.231924 | Avg 2.206147 | Avg 1.241436 | Avg 0.831686 |
-    | Min 1.182921 | Min 1.307397 | Min 2.167303 | Min 2.140801 | Min 0.826555 | Min 0.777843 |
-    | Med ~1.34267 | Med ~2.12779 | Med ~2.12779 | Med ~2.12779 | Med ~1.13277 | Med ~0.79775 |
-    | Max 2.310252 | Max 2.372835 | Max 2.265433 | Max 2.236500 | Max 2.236500 | Max 0.993195 |
-    |      Out 21% |      Out 10% |       Out 0% |       Out 0% |       Out 1% |       Out 6% |
-    +--------------+--------------+--------------+--------------+--------------+--------------+
-    |     Pix 8560 |     Pix 8560 |     Pix 8480 |     Pix 8560 |     Pix 8560 |     Pix 8480 |
-    | Avg 1.137213 | Avg 1.897875 | Avg 2.301367 | Avg 2.261466 | Avg 1.213459 | Avg 0.851140 |
-    | Min 1.066606 | Min 1.140213 | Min 2.222311 | Min 2.208299 | Min 0.962778 | Min 0.795900 |
-    | Med ~1.07654 | Med ~2.12779 | Med ~2.12779 | Med ~2.12779 | Med ~1.07654 | Med ~0.79775 |
-    | Max 1.297652 | Max 2.526822 | Max 2.473323 | Max 2.438899 | Max 2.310252 | Max 1.028611 |
-    |      Out 19% |      Out 22% |       Out 0% |       Out 0% |       Out 0% |       Out 6% |
-    +--------------+--------------+--------------+--------------+--------------+--------------+
+kinradar looks a lot better at larger sizes (at least 96 wide).
 
-    $ ./kinradar -a -g 40 -z 0.75 -Z 1.0
-    kinradar.c:199: depth():	time: 1027768440 frame: 1298 out: 18%
-    ________________________________________
-    ________________________________________
-    ___ ____ _______________________________
-    _________   ____________________________
-    _________ ______________________    ____
-    __   ___________________________    ____
-    __   ____________________________  _____
-    ___ ____________________________________
-    __________________________+_____________
-    ________________________++++  __________
-    _______________________+++++++__________
-    _______________________+++++++ _________
-    _______________________+++++++ _________
-    _________88___________++++++++ _________
-    ________ 888___%%_____++++++++ _________
-    ________  888__%%______++++++-__________
-    ________ 8888__%%_______+++++ __________
-    ________ 8888%_%%_______+++++___________
-    ________888%%%%% _____---+++ ___________
-    ________88%%%%%%%  _-----+++- __________
-    ....____8%%%%%%%  ++++----------________
-    ....____%%%%%%%%  +++++----------_____  
-    ....______%%%%%% ++++++---------- ____  
-    --.._______%%%%  +++++++------+++ ___   
-    --..________%%% +++++++++-+-++++++___   
-    ---_________%%%%++++++++++++++++++____  
-    ---__________%%%%+++++++++++++++++ ___  
-    ---__________%%%%++++++++++++++++++ _ __
-    --.___________%%%+--++++++++++++++++  __
-    --._______________--+++++++++++-+++++   
-    -----_____________--++++++++++--++++++..
-    ----______________---++++++++++__+++%%..
-    ----______________---+++++++++-__++%%%%-
-    ----______________---++++++++--___+%%%% 
-    ----______________--++++++++++-___+%%%%%
-    ---_______________--++++++++++-____%%%%%
-    --_________________--+++++++++---___%%%%
-    ____________________++++++++++++-____%%%
-    ___________________-+++++++++++++_____%%
-    ___________________++++++++++++++++____%
+    $ ./kinradar -Z 7
+    kinradar.c:151: depth():	time: 1576792434 frame: 1255 top: 0 bottom: 480
+    kinradar.c:153: depth():	popmax: 6808 out: 11%
+                                         /    \
+                                       /        \
+                                      /         +\.
+                                     / %88.      +\
+                                    /+888-+        \
+                                   / 8+888          \
+                                  /                  \
+                                 /             -88888%\
+                               /        +8888888888- .  \
+                              /--.    -.                 \
+                             /...                         \
+                            / .                            \
+                           /  -                             \
+                          /                                  \
+                        /                                      \
+                       /                                        \
+                      /                                          \.
+                     /                                           .\
+                    /-.                                          .8\
+                   /    .---.                                     8 \
+                  /-%+%+-...-888%                             .. .8   \
+                /..++++%+--.    +         ..8%%%+%888%%8%++++--.  +    \
+               /     .          %           ---++-+--+++-+++%%+   -.    \
+              /                 .                                  -     \
+             /                  ..                                 .      \
+            /                                                      ..      \
+           /                                                                 \
+         /                                                          .         \
+        /                                                                      \
+       /                                                             .          \
+      /                                                              ..          \
+     /                         -.  ...                                            \
 
 Copyright
 ---------
