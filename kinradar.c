@@ -55,7 +55,8 @@ static float yworld(int y, float z)
 {
 	// TODO: Determine whether a separate function is necessary, or if
 	// xworld() is enough for both X and Y.  I'm pretty sure that 26.25 is
-	// incorrect for the vertical viewing angle, since the sensor is planar
+	// incorrect for the vertical viewing angle, since the sensor is
+	// planar.  At any rate, this function isn't really used yet.
 	// tan 26.25 ~= .49315
 	return (float)(y - FREENECT_FRAME_H / 2) * (.49315f / (FREENECT_FRAME_H / 2)) * z;
 }
