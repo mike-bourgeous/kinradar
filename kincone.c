@@ -33,14 +33,6 @@
 // Get a depth pixel from an 11-bit buffer stored in uint16_t
 #define DPT(buf, x, y) (buf[(y) * FREENECT_FRAME_W + (x)])
 
-// Convert pixel number to coordinates
-#define PX_TO_X(pix) ((pix) % FREENECT_FRAME_W)
-#define PX_TO_Y(pix) ((pix) / FREENECT_FRAME_W)
-
-// Convert pixel number to grid entry
-#define PX_TO_GRIDX(pix) (PX_TO_X(pix) * divisions / FREENECT_FRAME_W)
-#define PX_TO_GRIDY(pix) (PX_TO_Y(pix) * divisions / FREENECT_FRAME_H)
-
 // Application state (I wish freenect provided a user data struct for callbacks)
 static float depth_lut[2048];
 static int out_of_range = 0;
