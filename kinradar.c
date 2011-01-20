@@ -79,13 +79,31 @@ static int zworld_to_grid(float z)
 	return val;
 }
 
+// Prints a single grid cell's character
+void print_cell(int val, int scale)
+{
+	int c = val * 20 / scale;
+
+	if(c > 5) {
+		c = 5;
+	}
+
+	// Special values for borders
+	if(val == -1) {
+		c = 6;
+	} else if(val == -2) {
+		c = 7;
+	}
+
+	putchar(" .-+%8/\\"[c]);
+}
 
 // Displays the given grid of characters at the given zero-based cursor
 // position.  If x < 0, the grid is printed without horizontal positioning.  If
 // y < 0, the grid is printed at the cursor's current vertical position.  Grid
 // cells are converted to character values by multiplying by 20 then dividing
-// by scale.
-void print_grid(int **grid, int scale, int x, int y)
+// by scale.  If transpose is nonzero, then u and v are swapped.
+void print_grid(int **grid, int scale, int x, int y, int transpose)
 {
 	char prefix[16];
 	int u, v;
@@ -100,24 +118,22 @@ void print_grid(int **grid, int scale, int x, int y)
 		prefix[0] = 0;
 	}
 
-	for(v = 0; v < vdiv; v++) {
-		printf("%s", prefix);
-		for(u = 0; u < udiv; u++) {
-			int c = grid[v][u] * 20 / scale;
-			if(c > 5) {
-				c = 5;
+	if(transpose) {
+		for(u = udiv - 1; u >= 0; u -= 2) {
+			printf("%s", prefix);
+			for(v = 0; v < vdiv; v++) {
+				print_cell(grid[v][u], scale);
 			}
-
-			// Special values for borders
-			if(grid[v][u] == -1) {
-				c = 6;
-			} else if(grid[v][u] == -2) {
-				c = 7;
-			}
-
-			putchar(" .-+%8/\\"[c]);
+			puts("\e[K");
 		}
-		puts("\e[K");
+	} else {
+		for(v = 0; v < vdiv; v += 2) {
+			printf("%s", prefix);
+			for(u = 0; u < udiv; u++) {
+				print_cell(grid[v][u], scale);
+			}
+			puts("\e[K");
+		}
 	}
 }
 
@@ -191,9 +207,9 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 		xgridpop[v][u] = -1;
 
 		w = yworld_to_grid(yworld(0, z));
-		ygridpop[v][w] = -2;
-		w = yworld_to_grid(yworld(FREENECT_FRAME_H - 1, z));
 		ygridpop[v][w] = -1;
+		w = yworld_to_grid(yworld(FREENECT_FRAME_H - 1, z));
+		ygridpop[v][w] = -2;
 	}
 
 	// Display grid containing cone
@@ -207,12 +223,12 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 		for(v = 0; v < vdiv; v++) {
 			print_map[v] = xgridpop[v];
 		}
-		print_grid(print_map, xpopmax, -1, 2);
+		print_grid(print_map, xpopmax, -1, 2, 0);
 
 		for(v = 0; v < vdiv; v++) {
 			print_map[v] = ygridpop[v];
 		}
-		print_grid(print_map, ypopmax / 2, udiv, 2);
+		print_grid(print_map, ypopmax / 2, udiv, 2, 1);
 	}
 
 	fflush(stdout);
