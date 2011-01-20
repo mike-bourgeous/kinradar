@@ -84,10 +84,53 @@ static int zworld_to_grid(float z)
 	return val;
 }
 
+
+// Displays the given grid of characters at the given zero-based cursor
+// position.  If x < 0, the grid is printed without horizontal positioning.  If
+// y < 0, the grid is printed at the cursor's current vertical position.  Grid
+// cells are converted to character values by multiplying by 20 then dividing
+// by scale.
+void print_grid(int **grid, int scale, int x, int y)
+{
+	char prefix[16];
+	int u, v;
+
+	if(y >= 0) {
+		printf("\e[%dH", y + 1);
+	}
+
+	if(x >= 0) {
+		snprintf(prefix, sizeof(prefix), "\e[%dG", x + 1);
+	} else {
+		prefix[0] = 0;
+	}
+
+	for(v = 0; v < vdiv; v++) {
+		printf("%s", prefix);
+		for(u = 0; u < udiv; u++) {
+			int c = grid[v][u] * 20 / scale;
+			if(c > 5) {
+				c = 5;
+			}
+
+			// Special values for borders
+			if(grid[v][u] == -1) {
+				c = 6;
+			} else if(grid[v][u] == -2) {
+				c = 7;
+			}
+
+			putchar(" .-+%8/\\"[c]);
+		}
+		puts("\e[K");
+	}
+}
+
 void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 {
 	const uint16_t *buf = (uint16_t *)depthbuf;
 	int gridpop[vdiv][udiv]; // Point population count
+	int *print_map[vdiv]; // List of pointers into gridpop
 	int oor_total = 0; // Out of range count
 	int popmax; // Used for scaling pixel intensity
 	int x, y, u, v, w;
@@ -144,22 +187,9 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 
 	if(popmax) {
 		for(v = 0; v < vdiv; v++) {
-			for(u = 0; u < udiv; u++) {
-				int c = gridpop[v][u] * 20 / popmax;
-				if(c > 5) {
-					c = 5;
-				}
-
-				// Special values for cone borders
-				if(gridpop[v][u] == -1) {
-					c = 6;
-				} else if(gridpop[v][u] == -2) {
-					c = 7;
-				}
-				putchar(" .-+%8/\\"[c]);
-			}
-			putchar('\n');
+			print_map[v] = gridpop[v];
 		}
+		print_grid(print_map, popmax, -1, -1);
 	}
 
 	fflush(stdout);
