@@ -259,10 +259,10 @@ int main(int argc, char *argv[])
 				fprintf(stderr, "Use any of:\n");
 				fprintf(stderr, "\tg - Set horizontal (x or y) grid divisions\n");
 				fprintf(stderr, "\tG - Set vertical (z) grid divisions\n");
-				fprintf(stderr, "\ty - Set top of active area in screen pixels (0-%d)\n",
+				fprintf(stderr, "\ty - Set top of active area in screen pixels (inclusive) (0-%d)\n",
 						FREENECT_FRAME_H - 1);
-				fprintf(stderr, "\tY - Set bottom of active area in screen pixels (0-%d)\n",
-						FREENECT_FRAME_H - 1);
+				fprintf(stderr, "\tY - Set bottom of active area in screen pixels (exclusive) (0-%d)\n",
+						FREENECT_FRAME_H);
 				fprintf(stderr, "\tz - Set near clipping plane in meters (default 0.5)\n");
 				fprintf(stderr, "\tZ - Set far clipping plane in meters (default 5.0)\n");
 				return -1;
