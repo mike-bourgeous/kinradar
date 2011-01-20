@@ -45,10 +45,15 @@ static float yworldmax; // Maximum Y coordinate visible on grid (if Y is shown i
 static int done = 0; // Set to 1 to break main loop
 
 
-static float toworld(int x, float z)
+static float xworld(int x, float z)
 {
 	// tan 35 ~= .70021
 	return (float)(FREENECT_FRAME_W / 2 - x) * (.70021f / (FREENECT_FRAME_W / 2)) * z;
+}
+
+static float yworld(int y, float z)
+{
+	return xworld(y + (FREENECT_FRAME_W - FREENECT_FRAME_H) / 2, z);
 }
 
 static int xworld_to_grid(float xworld)
@@ -58,7 +63,8 @@ static int xworld_to_grid(float xworld)
 
 static int yworld_to_grid(float yworld)
 {
-	return (int)((yworld + yworldmax) * udiv * 0.5f / yworldmax);
+	return (int)(udiv * (yworldmax + yworld) * 0.5f / yworldmax);
+	//return (int)((yworld + yworldmax) * udiv * 0.5f / yworldmax);
 }
 
 static int zworld_to_grid(float z)
@@ -118,16 +124,20 @@ void print_grid(int **grid, int scale, int x, int y)
 void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 {
 	const uint16_t *buf = (uint16_t *)depthbuf;
-	int gridpop[vdiv][udiv]; // Point population count
-	int *print_map[vdiv]; // List of pointers into gridpop
-	int oor_total = 0; // Out of range count
-	int popmax; // Used for scaling pixel intensity
+	int xgridpop[vdiv][udiv]; // Point population count (overhead view)
+	int ygridpop[vdiv][udiv]; // Point population count (side view)
+	int *print_map[vdiv]; // List of pointers into xgridpop
+	int oor_total; // Out of range count
+	int xpopmax, ypopmax; // Used for scaling pixel intensity
 	int x, y, u, v, w;
 	float z;
 
 	// Initialize data structures
-	memset(gridpop, 0, sizeof(gridpop));
-	popmax = 0;
+	memset(xgridpop, 0, sizeof(xgridpop));
+	memset(ygridpop, 0, sizeof(ygridpop));
+	xpopmax = 0;
+	ypopmax = 0;
+	oor_total = 0;
 
 	// Fill in cone
 	for(y = ytop; y < ybot; y++) {
@@ -146,39 +156,63 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 				continue;
 			}
 
-			u = xworld_to_grid(toworld(x, z));
-			w = yworld_to_grid(toworld(y, z));
+			u = xworld_to_grid(xworld(x, z));
+			w = yworld_to_grid(yworld(y, z));
 			v = zworld_to_grid(z);
 
-			gridpop[v][u]++;
-			if(gridpop[v][u] > popmax) {
-				popmax = gridpop[v][u];
+			xgridpop[v][u]++;
+			if(xgridpop[v][u] > xpopmax) {
+				xpopmax = xgridpop[v][u];
+			}
+
+			if(u < 0 || u >= udiv) {
+				ERROR_OUT("xgrid out of range: xpix=%d xw=%f xg=%d\n",
+						x, xworld(x, z), w);
+			}
+
+			if(w < 0 || w >= udiv) {
+				ERROR_OUT("ygrid out of range: ypix=%d yw=%f yg=%d\n",
+						y, yworld(y, z), w);
+			}
+
+			ygridpop[v][w]++;
+			if(ygridpop[v][w] > ypopmax) {
+				ypopmax = ygridpop[v][w];
 			}
 		}
 	}
 
 	// Draw cone borders (this isn't perfect, but it's good enough)
 	for(z = zmin; z < zmax; z += (zmax - zmin) / vdiv) {
-		u = xworld_to_grid(toworld(0, z));
+		u = xworld_to_grid(xworld(0, z));
 		v = zworld_to_grid(z);
-		gridpop[v][u] = -2;
-		u = xworld_to_grid(toworld(FREENECT_FRAME_W - 1, z));
-		v = zworld_to_grid(z);
-		gridpop[v][u] = -1;
+		xgridpop[v][u] = -2;
+		u = xworld_to_grid(xworld(FREENECT_FRAME_W - 1, z));
+		xgridpop[v][u] = -1;
+
+		w = yworld_to_grid(yworld(0, z));
+		ygridpop[v][w] = -2;
+		w = yworld_to_grid(yworld(FREENECT_FRAME_H - 1, z));
+		ygridpop[v][w] = -1;
 	}
 
 	// Display grid containing cone
-	printf("\e[H\e[2J");
+	printf("\e[H");
 	INFO_OUT("time: %u frame: %d top: %d bottom: %d\n",
 			timestamp, frame, ytop, ybot);
-	INFO_OUT("popmax: %d out: %d%%\n", popmax,
+	INFO_OUT("xpopmax: %d ypopmax: %d out: %d%%\n", xpopmax, ypopmax,
 			oor_total * 100 / FREENECT_FRAME_PIX);
 
-	if(popmax) {
+	if(xpopmax) {
 		for(v = 0; v < vdiv; v++) {
-			print_map[v] = gridpop[v];
+			print_map[v] = xgridpop[v];
 		}
-		print_grid(print_map, popmax, -1, -1);
+		print_grid(print_map, xpopmax, -1, 2);
+
+		for(v = 0; v < vdiv; v++) {
+			print_map[v] = ygridpop[v];
+		}
+		print_grid(print_map, ypopmax / 2, udiv, 2);
 	}
 
 	fflush(stdout);
@@ -271,12 +305,15 @@ int main(int argc, char *argv[])
 
 	init_lut();
 
-	xworldmax = toworld(0, zmax);
-	yworldmax = toworld(FREENECT_FRAME_H, zmax);
+	xworldmax = xworld(0, zmax);
+	yworldmax = yworld(0, zmax);
 
 	INFO_OUT("zmax: %f xworldmax: %f zgridmax: %d xgridmin: %d xgridmax: %d\n",
 			zmax, xworldmax, zworld_to_grid(zmax),
-			xworld_to_grid(toworld(0, zmax)), xworld_to_grid(toworld(639, zmax)));
+			xworld_to_grid(xworld(0, zmax)), xworld_to_grid(xworld(639, zmax)));
+
+	INFO_OUT("yworldmax: %f ygridmin: %d ygridmax: %d\n", yworldmax,
+			yworld_to_grid(yworld(479, zmax)), yworld_to_grid(yworld(0, zmax)));
 
 	if(signal(SIGINT, intr) == SIG_ERR ||
 			signal(SIGTERM, intr) == SIG_ERR) {
@@ -307,6 +344,8 @@ int main(int argc, char *argv[])
 	freenect_set_depth_format(kn_dev, FREENECT_DEPTH_11BIT);
 
 	freenect_start_depth(kn_dev);
+
+	printf("\e[H\e[2J");
 
 	int last_oor = out_of_range;
 	while(!done && freenect_process_events(kn) >= 0) {
