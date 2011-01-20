@@ -30,7 +30,7 @@
 // Get a depth pixel from an 11-bit buffer stored in uint16_t
 #define DPT(buf, x, y) (buf[(y) * FREENECT_FRAME_W + (x)])
 
-// Application state (I wish freenect provided a user data struct for callbacks)
+// Application state
 static float depth_lut[2048];
 static int out_of_range = 0;
 static int udiv = 80; // Grid horizontal (x or y) divisions
@@ -45,25 +45,14 @@ static float yworldmax; // Maximum Y coordinate visible on grid (if Y is shown i
 static int done = 0; // Set to 1 to break main loop
 
 
-static float xworld(int x, float z)
+static float toworld(int x, float z)
 {
 	// tan 35 ~= .70021
 	return (float)(FREENECT_FRAME_W / 2 - x) * (.70021f / (FREENECT_FRAME_W / 2)) * z;
 }
 
-static float yworld(int y, float z)
-{
-	// TODO: Determine whether a separate function is necessary, or if
-	// xworld() is enough for both X and Y.  I'm pretty sure that 26.25 is
-	// incorrect for the vertical viewing angle, since the sensor is
-	// planar.  At any rate, this function isn't really used yet.
-	// tan 26.25 ~= .49315
-	return (float)(y - FREENECT_FRAME_H / 2) * (.49315f / (FREENECT_FRAME_H / 2)) * z;
-}
-
 static int xworld_to_grid(float xworld)
 {
-	// At ximage=640 and z=zmax, xworld is zmax * .70021
 	return (int)((xworld + xworldmax) * udiv * 0.5f / xworldmax);
 }
 
@@ -157,8 +146,8 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 				continue;
 			}
 
-			u = xworld_to_grid(xworld(x, z));
-			w = yworld_to_grid(yworld(y, z));
+			u = xworld_to_grid(toworld(x, z));
+			w = yworld_to_grid(toworld(y, z));
 			v = zworld_to_grid(z);
 
 			gridpop[v][u]++;
@@ -170,10 +159,10 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 
 	// Draw cone borders (this isn't perfect, but it's good enough)
 	for(z = zmin; z < zmax; z += (zmax - zmin) / vdiv) {
-		u = xworld_to_grid(xworld(0, z));
+		u = xworld_to_grid(toworld(0, z));
 		v = zworld_to_grid(z);
 		gridpop[v][u] = -2;
-		u = xworld_to_grid(xworld(FREENECT_FRAME_W - 1, z));
+		u = xworld_to_grid(toworld(FREENECT_FRAME_W - 1, z));
 		v = zworld_to_grid(z);
 		gridpop[v][u] = -1;
 	}
@@ -282,12 +271,12 @@ int main(int argc, char *argv[])
 
 	init_lut();
 
-	xworldmax = xworld(0, zmax);
-	yworldmax = yworld(FREENECT_FRAME_H, zmax);
+	xworldmax = toworld(0, zmax);
+	yworldmax = toworld(FREENECT_FRAME_H, zmax);
 
 	INFO_OUT("zmax: %f xworldmax: %f zgridmax: %d xgridmin: %d xgridmax: %d\n",
 			zmax, xworldmax, zworld_to_grid(zmax),
-			xworld_to_grid(xworld(0, zmax)), xworld_to_grid(xworld(639, zmax)));
+			xworld_to_grid(toworld(0, zmax)), xworld_to_grid(toworld(639, zmax)));
 
 	if(signal(SIGINT, intr) == SIG_ERR ||
 			signal(SIGTERM, intr) == SIG_ERR) {
