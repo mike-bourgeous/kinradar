@@ -64,7 +64,6 @@ static int xworld_to_grid(float xworld)
 static int yworld_to_grid(float yworld)
 {
 	return (int)(udiv * (yworldmax + yworld) * 0.5f / yworldmax);
-	//return (int)((yworld + yworldmax) * udiv * 0.5f / yworldmax);
 }
 
 static int zworld_to_grid(float z)
