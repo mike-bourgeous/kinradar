@@ -342,6 +342,12 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 			}
 		}
 	}
+	if(data->xgrid.popmax < 500) {
+		data->xgrid.popmax = 500;
+	}
+	if(data->ygrid.popmax < 500) {
+		data->ygrid.popmax = 500;
+	}
 	if(data->xgrid.popmax > 1500) {
 		data->xgrid.popmax = 1500;
 	}
