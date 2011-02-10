@@ -301,11 +301,11 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 	clear_grid(&data->ygrid);
 
 	// Fill in cone
-	data->ytop += 15;
-	data->ybot += 15;
-	if(data->ybot >= FREENECT_FRAME_H + 25) {
-		data->ytop = -25;
-		data->ybot = 25;
+	data->ytop += 55;
+	data->ybot += 55;
+	if(data->ytop >= FREENECT_FRAME_H - 25) {
+		data->ytop -= FREENECT_FRAME_H;
+		data->ybot -= FREENECT_FRAME_H;
 	}
 
 	for(y = MAX_NUM(0, data->ytop); y < MIN_NUM(FREENECT_FRAME_H, data->ybot); y++) {
