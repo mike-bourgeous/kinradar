@@ -248,7 +248,13 @@ void print_grid(struct kinradar_data *data, struct grid_info *grid, int x, int y
 
 void clear_grid(struct grid_info *grid)
 {
-	memset(grid->gridpop_buffer, 0, grid->bufsize);
+	int u, v;
+
+	for(v = 0; v < grid->vdiv; v++) {
+		for(u = 0; u < grid->udiv; u++) {
+			grid->gridpop[v][u] = grid->gridpop[v][u] * 80 / 100;
+		}
+	}
 	grid->popmax = 0;
 }
 
@@ -287,14 +293,15 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 	int x, y, u, v;
 	float xw, yw, zw;
 
+	clear_grid(&data->xgrid);
+	clear_grid(&data->ygrid);
+
 	// Fill in cone
 	data->ytop += 15;
 	data->ybot += 15;
-	if(data->ybot >= FREENECT_FRAME_W) {
+	if(data->ybot >= FREENECT_FRAME_H + 25) {
 		data->ytop = -25;
 		data->ybot = 25;
-		//clear_grid(&data->xgrid);
-		//clear_grid(&data->ygrid);
 	}
 
 	for(y = MAX_NUM(0, data->ytop); y < MIN_NUM(FREENECT_FRAME_H, data->ybot); y++) {
@@ -330,6 +337,12 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 				data->ygrid.popmax = data->ygrid.gridpop[v][u];
 			}
 		}
+	}
+	if(data->xgrid.popmax > 1500) {
+		data->xgrid.popmax = 1500;
+	}
+	if(data->ygrid.popmax > 1500) {
+		data->ygrid.popmax = 1500;
 	}
 
 	// Draw cone borders
