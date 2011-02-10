@@ -173,12 +173,16 @@ static void putchar_color(int bold, int fgcolor, int bgcolor, int c)
 inline void print_cell(struct kinradar_data *data, int val, int scale)
 {
 	int c = val * 20 / scale;
-	const char charset[] = " .-+%8/\\";
-	const int fg[] = { 0, 0, 7, 7, 7, 7, 2, 2 };
-	const int bold[] = { 1, 1, 0, 0, 1, 1, 0, 0 };
+	const char charset[] = " .-+%8/\\.";
+	const int fg[] = { 0, 0, 7, 7, 7, 7, 2, 2, 2 };
+	const int bold[] = { 1, 1, 0, 0, 1, 1, 0, 0, 0 };
 
 	if(c > 5) {
 		c = 5;
+	}
+
+	if(val && c == 0) {
+		c = 8;
 	}
 
 	// Special values for borders
