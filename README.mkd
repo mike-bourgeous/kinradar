@@ -30,14 +30,17 @@ Compiling and Running
 
 Command-line Options
 --------------------
-    usage: ./kinradar [-gG divisions] [-yY pixels] [-zZ distance]
+    Usage: ./kinradar [-gG divisions] [-yY pixels] [-zZ distance] [-hv]
     Use any of:
-    	g - Set horizontal (x or y) grid divisions
-    	G - Set vertical (z) grid divisions
-    	y - Set top of active area in screen pixels (0-479)
-    	Y - Set bottom of active area in screen pixels (0-479)
-    	z - Set near clipping plane in meters (default 0.5)
-    	Z - Set far clipping plane in meters (default 5.0)
+            g - Set horizontal (x or y) grid divisions
+            G - Set vertical (z) grid divisions
+            y - Set top of active area in screen pixels (inclusive) (0-479)
+            Y - Set bottom of active area in screen pixels (exclusive) (0-480)
+            z - Set near clipping plane in meters (default 0.5)
+            Z - Set far clipping plane in meters (default 6.0)
+            h - Show horizontal (overhead) view only
+            v - Show vertical (side) view only
+    Press Ctrl-C (or send SIGINT) to quit.
 
 Sample Output
 -------------
