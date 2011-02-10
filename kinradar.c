@@ -31,6 +31,9 @@
 	fprintf(stderr, ": %d (%s)\e[0m\n", errno, strerror(errno));\
 }
 
+#define MIN_NUM(x, y) ((x) <= (y) ? (x) : (y))
+#define MAX_NUM(x, y) ((x) >= (y) ? (x) : (y))
+
 // Get a depth pixel from an 11-bit buffer stored in uint16_t
 #define DPT(buf, x, y) (buf[(y) * FREENECT_FRAME_W + (x)])
 
@@ -284,12 +287,17 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 	int x, y, u, v;
 	float xw, yw, zw;
 
-	// Initialize data structures
-	clear_grid(&data->xgrid);
-	clear_grid(&data->ygrid);
-
 	// Fill in cone
-	for(y = data->ytop; y < data->ybot; y++) {
+	data->ytop += 15;
+	data->ybot += 15;
+	if(data->ybot >= FREENECT_FRAME_W) {
+		data->ytop = -25;
+		data->ybot = 25;
+		//clear_grid(&data->xgrid);
+		//clear_grid(&data->ygrid);
+	}
+
+	for(y = MAX_NUM(0, data->ytop); y < MIN_NUM(FREENECT_FRAME_H, data->ybot); y++) {
 		for(x = 0; x < FREENECT_FRAME_W; x++) {
 			if(DPT(buf, x, y) == 2047) {
 				oor_total++;
@@ -384,8 +392,8 @@ static void init_data(struct kinradar_data *data)
 	data->ygrid.zmax = 6.0f;
 	data->ygrid.wmax = yworld(FREENECT_FRAME_H - 1, data->ygrid.zmax);
 
-	data->ytop = 0;
-	data->ybot = FREENECT_FRAME_H;
+	data->ytop = -25;
+	data->ybot = 25;
 }
 
 static int alloc_grid(struct grid_info *grid)
