@@ -372,7 +372,7 @@ static void init_data(struct kinradar_data *data)
 
 	data->disp_mode = SHOW_BOTH;
 
-	data->xgrid.udiv = 80;
+	data->xgrid.udiv = 65;
 	data->xgrid.vdiv = 32;
 	data->xgrid.zmin = 0.0f;
 	data->xgrid.zmax = 6.0f;
@@ -497,7 +497,7 @@ int main(int argc, char *argv[])
 						FREENECT_FRAME_H - 1);
 				fprintf(stderr, "\tY - Set bottom of active area in screen pixels (exclusive) (0-%d)\n",
 						FREENECT_FRAME_H);
-				fprintf(stderr, "\tz - Set near clipping plane in meters (default 0.5)\n");
+				fprintf(stderr, "\tz - Set near clipping plane in meters (default 0.0)\n");
 				fprintf(stderr, "\tZ - Set far clipping plane in meters (default 6.0)\n");
 				fprintf(stderr, "\th - Show horizontal (overhead) view only\n");
 				fprintf(stderr, "\tv - Show vertical (side) view only\n");
