@@ -328,7 +328,7 @@ void depth(freenect_device *kn_dev, void *depthbuf, uint32_t timestamp)
 	draw_grid_border(&data->xgrid);
 	draw_grid_border(&data->ygrid);
 
-	// Display scene and zone info
+	// Display scene info
 	printf("\e[H");
 	INFO_OUT("\e[Ktime: %u frame: %d top: %d bottom: %d\n",
 			timestamp, data->frame, data->ytop, data->ybot);
