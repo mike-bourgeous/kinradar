@@ -45,7 +45,8 @@ Command-line Options
 Sample Output
 -------------
 kinradar looks a lot better at larger sizes (at least 96 wide) and when in
-motion.  The static image here doesn't do it justice.
+motion.  The static image here doesn't do it justice, nor can you see the
+colors.
 
     $ ./kinradar -Z 7
     kinradar.c:151: depth():	time: 1576792434 frame: 1255 top: 0 bottom: 480
