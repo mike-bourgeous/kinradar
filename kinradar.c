@@ -491,8 +491,8 @@ int main(int argc, char *argv[])
 				fprintf(stderr, "Usage: %s [-gG divisions] [-yY pixels] [-zZ distance] [-hv]\n",
 						argv[0]);
 				fprintf(stderr, "Use any of:\n");
-				fprintf(stderr, "\tg - Set horizontal (x or y) grid divisions\n");
-				fprintf(stderr, "\tG - Set vertical (z) grid divisions\n");
+				fprintf(stderr, "\tg - Set horizontal grid divisions\n");
+				fprintf(stderr, "\tG - Set vertical grid divisions\n");
 				fprintf(stderr, "\ty - Set top of active area in screen pixels (inclusive) (0-%d)\n",
 						FREENECT_FRAME_H - 1);
 				fprintf(stderr, "\tY - Set bottom of active area in screen pixels (exclusive) (0-%d)\n",
