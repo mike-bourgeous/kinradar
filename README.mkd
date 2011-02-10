@@ -31,8 +31,8 @@ Command-line Options
 --------------------
     Usage: ./kinradar [-gG divisions] [-yY pixels] [-zZ distance] [-hv]
     Use any of:
-            g - Set horizontal (x or y) grid divisions
-            G - Set vertical (z) grid divisions
+            g - Set horizontal grid divisions
+            G - Set vertical grid divisions
             y - Set top of active area in screen pixels (inclusive) (0-479)
             Y - Set bottom of active area in screen pixels (exclusive) (0-480)
             z - Set near clipping plane in meters (default 0.5)
@@ -47,7 +47,7 @@ kinradar looks a lot better at larger sizes (at least 96 wide) and when in
 motion.  The static image here doesn't do it justice, nor can you see the
 colors.
 
-    $ ./kinradar -Z 7
+    $ ./kinradar -Z 7 -h
     kinradar.c:151: depth():	time: 1576792434 frame: 1255 top: 0 bottom: 480
     kinradar.c:153: depth():	popmax: 6808 out: 11%
                                          /    \
