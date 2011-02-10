@@ -2,12 +2,11 @@ kinradar
 ========
 Part of a collection of Kinect hacks and tools by Mike Bourgeous.
 
-kinradar displays an ASCII-art radar-like distance view, simulating an overhead
-view of the room.  The intensity of each ASCII-art pixel is determined by the
-strength of the reflected signal at that distance (i.e. the number of depth
-samples falling within that pixel's corresponding 3D area).  The considered
-vertical area of the image can be restricted.  At this point only a horizontal
-cross section is supported, but adding vertical cross sections would be easy.
+kinradar displays a colored ASCII-art radar-like distance view, simulating an
+overhead and/or side view of the room.  The intensity of each ASCII-art pixel
+is determined by the strength of the reflected signal at that distance (i.e.
+the number of depth samples falling within that pixel's corresponding 3D
+volume).  The considered vertical area of the image can be restricted.
 
 A depth sample's corresponding location in 3D space is calculated by assuming a
 70 degree horizontal field of view, resulting in the following formula for X:
